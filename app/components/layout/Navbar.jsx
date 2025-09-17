@@ -1,19 +1,19 @@
-// components/layout/Navbar.tsx
 'use client'
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, Heart, Shield, ArrowRight } from 'lucide-react'
+import { Menu, X, Heart, ArrowRight, User } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { useAuth } from '@/context/AuthContext'
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const { user, logout } = useAuth()
 
-  // Handle scroll effect
+  // Scroll effect
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20)
-    }
+    const handleScroll = () => setScrolled(window.scrollY > 20)
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
@@ -27,9 +27,7 @@ const Navbar = () => {
 
   const scrollToSection = (href) => {
     const element = document.querySelector(href)
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' })
-    }
+    if (element) element.scrollIntoView({ behavior: 'smooth' })
     setIsOpen(false)
   }
 
@@ -37,8 +35,8 @@ const Navbar = () => {
     <>
       <motion.nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled 
-            ? 'bg-white/95 backdrop-blur-lg shadow-soft border-b border-gray-100' 
+          scrolled
+            ? 'bg-white/95 backdrop-blur-lg shadow-soft border-b border-gray-100'
             : 'bg-transparent'
         }`}
         initial={{ y: -100 }}
@@ -48,7 +46,7 @@ const Navbar = () => {
         <div className="max-w-7xl mx-auto px-2 py-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <motion.div 
+            <motion.div
               className="flex items-center gap-2 cursor-pointer"
               whileHover={{ scale: 1.05 }}
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -71,21 +69,66 @@ const Navbar = () => {
                   transition={{ delay: index * 0.1 }}
                 >
                   {item.name}
-                  <motion.div
-                    className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-600 group-hover:w-full transition-all duration-300"
-                  />
+                  <motion.div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-600 group-hover:w-full transition-all duration-300" />
                 </motion.button>
               ))}
             </div>
 
-            {/* Desktop CTA */}
-            <div className="hidden md:flex items-center space-x-4">
-              <button className="text-primary-600 font-medium hover:text-primary-700 transition-colors">
-                Sign In
-              </button>
-              <Button variant="primary" size="sm" icon={ArrowRight}>
-                Get Started Free
-              </Button>
+            {/* Desktop CTA / User Profile */}
+            <div className="hidden md:flex items-center space-x-4 relative">
+              {!user ? (
+                <>
+                  <button className="text-primary-600 font-medium hover:text-primary-700 transition-colors">
+                    Sign In
+                  </button>
+                  <Button variant="primary" size="sm" icon={ArrowRight}>
+                    Get Started Free
+                  </Button>
+                </>
+              ) : (
+                <div className="relative">
+                  <button
+                    onClick={() => setProfileOpen(!profileOpen)}
+                    className="flex items-center gap-2 border border-gray-200 rounded-full px-3 py-1 hover:bg-gray-100 transition-colors"
+                  >
+                    <User className="w-5 h-5" />
+                    <span className="font-medium">{user.name || 'Profile'}</span>
+                  </button>
+
+                  <AnimatePresence>
+                    {profileOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-lg shadow-lg overflow-hidden z-50"
+                      >
+                        <button
+                          className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                          onClick={() => {
+                            setProfileOpen(false)
+                            // navigate to dashboard
+                            window.location.href =
+                              user.role === 'admin'
+                                ? '/admin/dashboard'
+                                : user.role === 'caregiver'
+                                ? '/caregiver/dashboard'
+                                : '/user/dashboard'
+                          }}
+                        >
+                          Dashboard
+                        </button>
+                        <button
+                          className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
+                          onClick={() => logout()}
+                        >
+                          Logout
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -118,13 +161,41 @@ const Navbar = () => {
                     {item.name}
                   </button>
                 ))}
+
                 <div className="pt-4 border-t border-gray-100 space-y-3">
-                  <button className="block w-full text-left text-primary-600 font-medium py-2">
-                    Sign In
-                  </button>
-                  <Button variant="primary" size="md" icon={ArrowRight} className="w-full">
-                    Get Started Free
-                  </Button>
+                  {!user ? (
+                    <>
+                      <button className="block w-full text-left text-primary-600 font-medium py-2">
+                        Sign In
+                      </button>
+                      <Button variant="primary" size="md" icon={ArrowRight} className="w-full">
+                        Get Started Free
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                        onClick={() => {
+                          setIsOpen(false)
+                          window.location.href =
+                            user.role === 'admin'
+                              ? '/admin/dashboard'
+                              : user.role === 'caregiver'
+                              ? '/caregiver/dashboard'
+                              : '/user/dashboard'
+                        }}
+                      >
+                        Dashboard
+                      </button>
+                      <button
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
+                        onClick={() => logout()}
+                      >
+                        Logout
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -132,7 +203,7 @@ const Navbar = () => {
         </AnimatePresence>
       </motion.nav>
 
-      {/* Spacer to prevent content from hiding behind fixed navbar */}
+      {/* Spacer */}
       <div className="h-16"></div>
     </>
   )

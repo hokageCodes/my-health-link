@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
-const slugify = require("slugify"); // npm i slugify
+const slugify = require("slugify");
 
 const UserSchema = new mongoose.Schema(
   {
@@ -15,19 +15,27 @@ const UserSchema = new mongoose.Schema(
       enum: ["patient", "caregiver", "doctor", "admin"],
       default: "patient",
     },
+
+    // relationships
     caregivers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     patients: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     doctors: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+
+    // notes
     careNotes: [
       {
         caregiver: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
         note: String,
         createdAt: { type: Date, default: Date.now },
-      }
+      },
     ],
 
+    // ========== Verification ==========
     isVerified: { type: Boolean, default: false },
-    otp: { code: String, expiresAt: Date },
+    otp: {
+      code: { type: String },
+      expiresAt: { type: Date },
+    },
     failedLoginAttempts: { type: Number, default: 0 },
     lockUntil: { type: Date },
     refreshTokenHash: { type: String },
@@ -37,12 +45,23 @@ const UserSchema = new mongoose.Schema(
     profile: {
       dateOfBirth: { type: Date },
       gender: { type: String, enum: ["male", "female", "other"] },
-      bloodType: { type: String, enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"] },
-      genotype: { type: String, enum: ["AA", "AS", "SS", "AC", "SC"], default: "AA" },
+      bloodType: {
+        type: String,
+        enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],
+      },
+      genotype: {
+        type: String,
+        enum: ["AA", "AS", "SS", "AC", "SC"],
+        default: "AA",
+      },
       allergies: [{ type: String }],
       chronicConditions: [{ type: String }],
       medications: [
-        { name: String, dosage: String, frequency: String }
+        {
+          name: String,
+          dosage: String,
+          frequency: String,
+        },
       ],
       emergencyContact: { name: String, phone: String },
     },
@@ -55,18 +74,18 @@ const UserSchema = new mongoose.Schema(
 // ========== Methods ==========
 
 // Compare password
-UserSchema.methods.comparePassword = function(password) {
+UserSchema.methods.comparePassword = function (password) {
   return bcrypt.compare(password, this.passwordHash);
 };
 
 // Hash password
-UserSchema.statics.hashPassword = function(password) {
+UserSchema.statics.hashPassword = function (password) {
   const salt = bcrypt.genSaltSync(10);
   return bcrypt.hashSync(password, salt);
 };
 
 // Profile completion calculation
-UserSchema.methods.getProfileCompletion = function() {
+UserSchema.methods.getProfileCompletion = function () {
   let completed = 0;
   const requiredFields = [
     "name",
@@ -104,6 +123,5 @@ UserSchema.pre("save", async function (next) {
   }
   next();
 });
-
 
 module.exports = mongoose.model("User", UserSchema);

@@ -19,10 +19,10 @@ passport.use(
 
         if (!user) {
           user = await User.create({
-            name: profile.displayName,
-            email: profile.emails[0].value,
+            name: profile.displayName || profile.emails[0].value.split("@")[0],
+            email: profile.emails?.[0]?.value || `${profile.id}@google.com`,
             googleId: profile.id,
-            isVerified: true,
+            isVerified: true, // OAuth users are trusted
           });
         }
 

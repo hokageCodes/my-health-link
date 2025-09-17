@@ -59,7 +59,7 @@ const ProblemSection = () => {
             
           </h2>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-            Travelling? Changing hospotals? Medical records spread across different platrofms and hospitals, lost test results and inaccessible health history when we need it the most. Sounds familiar? We Fix That.
+            Travelling? Changing hospitals? Medical records spread across different platrofms and hospitals, lost test results and inaccessible health history when we need it the most. Sounds familiar? We Fix That.
           </p>
         </FadeIn>
 
