@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
+const passport = require('passport');
 const rateLimit = require('./src/middleware/rateLimiter');
 const connectDB = require('./src/config/db');
 const routes = require('./src/routes');
@@ -16,14 +17,14 @@ const doctorRoutes = require("./src/routes/doctorRoutes");
 const caregiverRoutes = require("./src/routes/caregiverRoutes");
 const adminRoutes = require("./src/routes/adminRoutes");
 
+// Import passport configuration
+require('./src/config/passport');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-
 // Connect DB
 connectDB();
-
 
 // Middlewares
 app.use(helmet());
@@ -33,6 +34,8 @@ app.use(cookieParser());
 app.use(morgan('dev'));
 app.use(rateLimit);
 
+// Initialize Passport
+app.use(passport.initialize());
 
 // CORS - tighten in production
 const allowedOrigins = [process.env.FRONTEND_URL || 'http://localhost:3000'];
@@ -48,8 +51,6 @@ app.use(cors({
   credentials: true,
 }));
 
-
-
 // Routes
 app.use('/api', routes);
 app.use("/api/auth", authRoutes);
@@ -60,18 +61,13 @@ app.use("/api/doctor", doctorRoutes);
 app.use("/api/caregiver", caregiverRoutes);
 app.use("/api/admin", adminRoutes);
 
-
-
-
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date() }));
-
 
 // Error handler
 app.use(errorHandler);
 
-
 app.listen(PORT, () => {
-console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Google OAuth available at: http://localhost:${PORT}/api/auth/google`);
 });
-

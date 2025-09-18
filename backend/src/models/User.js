@@ -6,10 +6,16 @@ const UserSchema = new mongoose.Schema(
   {
     // ========== Auth & Base ==========
     name: { type: String, required: true },
-    username: { type: String, unique: true, lowercase: true },
+    username: { type: String, unique: true, lowercase: true, sparse: true },
     email: { type: String, required: true, unique: true, lowercase: true },
     phone: { type: String },
-    passwordHash: { type: String },
+    passwordHash: { 
+      type: String,
+      required: function() {
+        // Password is only required if not using OAuth
+        return !this.googleId;
+      }
+    },
     role: {
       type: String,
       enum: ["patient", "caregiver", "doctor", "admin"],
@@ -38,8 +44,16 @@ const UserSchema = new mongoose.Schema(
     },
     failedLoginAttempts: { type: Number, default: 0 },
     lockUntil: { type: Date },
-    refreshTokenHash: { type: String },
-    googleId: { type: String },
+    refreshTokenHash: { type: String, select: false }, // Hide by default
+    
+    // OAuth fields
+    googleId: { type: String, sparse: true }, // Allow null values and create sparse index
+    
+    // Password reset
+    resetToken: {
+      token: { type: String },
+      expiresAt: { type: Date }
+    },
 
     // ========== Profile ==========
     profile: {
@@ -67,20 +81,36 @@ const UserSchema = new mongoose.Schema(
     },
 
     verifiedFields: [{ type: String }],
+    
+    // Timestamps for tracking
+    lastLoginAt: { type: Date },
+    lastLogoutAt: { type: Date },
+    verifiedAt: { type: Date },
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    // Ensure indexes are created properly
+    index: { googleId: 1 }
+  }
 );
+
+// ========== Indexes ==========
+// Compound index for OAuth users
+UserSchema.index({ email: 1, googleId: 1 });
 
 // ========== Methods ==========
 
-// Compare password
+// Compare password - handle OAuth users
 UserSchema.methods.comparePassword = function (password) {
+  if (!this.passwordHash) {
+    return false; // OAuth users don't have passwords to compare
+  }
   return bcrypt.compare(password, this.passwordHash);
 };
 
 // Hash password
 UserSchema.statics.hashPassword = function (password) {
-  const salt = bcrypt.genSaltSync(10);
+  const salt = bcrypt.genSaltSync(12); // Increased salt rounds for better security
   return bcrypt.hashSync(password, salt);
 };
 
@@ -110,18 +140,41 @@ UserSchema.methods.getProfileCompletion = function () {
   return Math.round((completed / requiredFields.length) * 100);
 };
 
+// Check if user is OAuth user
+UserSchema.methods.isOAuthUser = function () {
+  return !!this.googleId;
+};
+
 // Pre-save hook to generate username if not set
 UserSchema.pre("save", async function (next) {
-  if (!this.username) {
+  if (!this.username && this.name) {
     let base = slugify(this.name, { lower: true, strict: true });
     let username = base;
     let count = 1;
+    
+    // Check for existing usernames
     while (await mongoose.models.User.findOne({ username })) {
       username = `${base}${count++}`;
     }
     this.username = username;
   }
   next();
+});
+
+// Pre-save hook for password hashing
+UserSchema.pre('save', async function(next) {
+  // Only hash password if it's new or modified and exists
+  if (!this.isModified('passwordHash') || !this.passwordHash) {
+    return next();
+  }
+  
+  // Hash the password
+  try {
+    this.passwordHash = await bcrypt.hash(this.passwordHash, 12);
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
 module.exports = mongoose.model("User", UserSchema);

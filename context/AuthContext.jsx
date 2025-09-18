@@ -420,6 +420,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Google OAuth login method
+  const loginWithGoogle = () => {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+    window.location.href = `${baseUrl}/auth/google`;
+  };
+
   const value = {
     user,
     loading,
@@ -431,7 +437,9 @@ export const AuthProvider = ({ children }) => {
     resendOtp,
     forgotPassword,
     resetPassword,
-    refreshUser
+    refreshUser,
+    loginWithGoogle,
+    setUser // Export setUser for OAuth callback
   };
 
   return (
