@@ -1,11 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import Link from "next/link";
 
 export default function VerifyEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+        </div>
+      }
+    >
+      <VerifyEmailContent />
+    </Suspense>
+  );
+}
+
+function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { verifyOtp, resendOtp, loading } = useAuth();
@@ -23,7 +37,7 @@ export default function VerifyEmailPage() {
     if (!email) router.push("/register");
   }, [email, router]);
 
-  // Resend countdown
+  // Countdown
   useEffect(() => {
     if (counter > 0) {
       const timer = setTimeout(() => setCounter((c) => c - 1), 1000);
@@ -42,7 +56,6 @@ export default function VerifyEmailPage() {
 
   const handleOtpSubmit = async (e) => {
     e.preventDefault();
-
     if (otp.length !== 6) {
       setError("Please enter a valid 6-digit code");
       return;
@@ -58,7 +71,7 @@ export default function VerifyEmailPage() {
         setSuccess(result.message || "Email verified successfully!");
         setOtp("");
         setTimeout(() => {
-          router.push("/login"); // 🔄 change this to /dashboard if you want auto role redirect
+          router.push("/login"); // or auto role-based redirect if you prefer
         }, 1500);
       }
     } catch (err) {
@@ -98,7 +111,7 @@ export default function VerifyEmailPage() {
   if (!email) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
@@ -106,7 +119,6 @@ export default function VerifyEmailPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen px-4 bg-gray-50">
       <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8">
-        {/* Header */}
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
@@ -130,7 +142,6 @@ export default function VerifyEmailPage() {
           <p className="text-gray-900 font-medium break-all">{email}</p>
         </div>
 
-        {/* Error / Success */}
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-center text-red-700 text-sm">
             {error}
@@ -142,7 +153,6 @@ export default function VerifyEmailPage() {
           </div>
         )}
 
-        {/* OTP Form */}
         <form onSubmit={handleOtpSubmit} className="space-y-6">
           <input
             type="text"
@@ -170,7 +180,6 @@ export default function VerifyEmailPage() {
           </button>
         </form>
 
-        {/* Resend */}
         <div className="mt-6 text-center">
           {counter > 0 ? (
             <p className="text-sm text-gray-500">
@@ -191,7 +200,6 @@ export default function VerifyEmailPage() {
           )}
         </div>
 
-        {/* Footer */}
         <div className="mt-8 pt-6 border-t border-gray-200 text-center text-xs text-gray-500">
           <p>
             Trouble? Check spam folder or{" "}
