@@ -1,5 +1,5 @@
 // app/caregiver/layout.tsx - Caregiver Layout
-import AuthGuard from "../../app/components/AuthGuard";
+import AuthGuard from "../components/AuthGuard";
 
 export default function CaregiverLayout({ children }) {
   return (

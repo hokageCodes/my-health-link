@@ -1,5 +1,5 @@
 // app/admin/layout.tsx - Admin Layout
-import AuthGuard from "@/components/AuthGuard";
+import AuthGuard from "../components/AuthGuard";
 
 export default function AdminLayout({ children }) {
   return (
