@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X, Heart, ArrowRight, User } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { Button } from '../ui/Button'
 import { useAuth } from '@/context/AuthContext'
 
@@ -10,6 +11,7 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const { user, logout } = useAuth()
+  const router = useRouter()
 
   // Scroll effect
   useEffect(() => {
@@ -29,6 +31,50 @@ const Navbar = () => {
     const element = document.querySelector(href)
     if (element) element.scrollIntoView({ behavior: 'smooth' })
     setIsOpen(false)
+  }
+
+  const navigateToDashboard = () => {
+    setProfileOpen(false)
+    setIsOpen(false)
+    
+    if (!user) return
+    
+    // Use Next.js router instead of window.location.href
+    switch (user.role) {
+      case 'admin':
+        router.push('/admin/dashboard')
+        break
+      case 'caregiver':
+        router.push('/caregiver/dashboard')
+        break
+      case 'patient':
+      case 'user':
+        router.push('/user/dashboard')
+        break
+      default:
+        router.push('/dashboard')
+        break
+    }
+  }
+
+  const handleLogout = async () => {
+    setProfileOpen(false)
+    setIsOpen(false)
+    try {
+      await logout()
+      // Optionally redirect to home page after logout
+      router.push('/')
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
+  }
+
+  const handleSignIn = () => {
+    router.push('/login')
+  }
+
+  const handleGetStarted = () => {
+    router.push('/register')
   }
 
   return (
@@ -78,10 +124,18 @@ const Navbar = () => {
             <div className="hidden md:flex items-center space-x-4 relative">
               {!user ? (
                 <>
-                  <button className="text-primary-600 font-medium hover:text-primary-700 transition-colors">
+                  <button 
+                    onClick={handleSignIn}
+                    className="text-primary-600 font-medium hover:text-primary-700 transition-colors"
+                  >
                     Sign In
                   </button>
-                  <Button variant="primary" size="sm" icon={ArrowRight}>
+                  <Button 
+                    variant="primary" 
+                    size="sm" 
+                    icon={ArrowRight}
+                    onClick={handleGetStarted}
+                  >
                     Get Started Free
                   </Button>
                 </>
@@ -104,23 +158,14 @@ const Navbar = () => {
                         className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-lg shadow-lg overflow-hidden z-50"
                       >
                         <button
-                          className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                          onClick={() => {
-                            setProfileOpen(false)
-                            // navigate to dashboard
-                            window.location.href =
-                              user.role === 'admin'
-                                ? '/admin/dashboard'
-                                : user.role === 'caregiver'
-                                ? '/caregiver/dashboard'
-                                : '/user/dashboard'
-                          }}
+                          className="block w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors"
+                          onClick={navigateToDashboard}
                         >
                           Dashboard
                         </button>
                         <button
-                          className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
-                          onClick={() => logout()}
+                          className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600 transition-colors"
+                          onClick={handleLogout}
                         >
                           Logout
                         </button>
@@ -165,32 +210,33 @@ const Navbar = () => {
                 <div className="pt-4 border-t border-gray-100 space-y-3">
                   {!user ? (
                     <>
-                      <button className="block w-full text-left text-primary-600 font-medium py-2">
+                      <button 
+                        onClick={handleSignIn}
+                        className="block w-full text-left text-primary-600 font-medium py-2"
+                      >
                         Sign In
                       </button>
-                      <Button variant="primary" size="md" icon={ArrowRight} className="w-full">
+                      <Button 
+                        variant="primary" 
+                        size="md" 
+                        icon={ArrowRight} 
+                        className="w-full"
+                        onClick={handleGetStarted}
+                      >
                         Get Started Free
                       </Button>
                     </>
                   ) : (
                     <>
                       <button
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                        onClick={() => {
-                          setIsOpen(false)
-                          window.location.href =
-                            user.role === 'admin'
-                              ? '/admin/dashboard'
-                              : user.role === 'caregiver'
-                              ? '/caregiver/dashboard'
-                              : '/user/dashboard'
-                        }}
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors"
+                        onClick={navigateToDashboard}
                       >
                         Dashboard
                       </button>
                       <button
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
-                        onClick={() => logout()}
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600 transition-colors"
+                        onClick={handleLogout}
                       >
                         Logout
                       </button>

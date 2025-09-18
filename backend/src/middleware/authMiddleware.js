@@ -1,11 +1,22 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+// Helper for consistent error responses
+const sendAuthError = (res, message, statusCode = 401, expired = false) => {
+  return res.status(statusCode).json({
+    success: false,
+    message,
+    expired,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Main authentication middleware
 exports.protect = async (req, res, next) => {
   try {
     let token;
 
-    // Get token from Authorization header or cookies
+    // Extract token from Authorization header or cookies
     if (req.headers.authorization?.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     } else if (req.cookies?.accessToken) {
@@ -13,89 +24,57 @@ exports.protect = async (req, res, next) => {
     }
 
     if (!token) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Not authorized, no token provided',
-        timestamp: new Date().toISOString()
-      });
+      return sendAuthError(res, 'Not authorized, no token provided');
     }
 
+    // Verify token
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
     } catch (err) {
-      console.error('Token verification error:', err.message);
-      
-      // Provide specific error information
-      const errorResponse = {
-        success: false,
-        message: 'Invalid or expired token',
-        expired: err.name === 'TokenExpiredError',
-        timestamp: new Date().toISOString()
-      };
-      
-      return res.status(401).json(errorResponse);
+      const isExpired = err.name === 'TokenExpiredError';
+      return sendAuthError(res, 'Invalid or expired token', 401, isExpired);
     }
 
-    // Find the user and exclude sensitive fields
+    // Find user and exclude sensitive fields
     const user = await User.findById(decoded.id)
       .select('-passwordHash -refreshTokenHash -otp -resetToken');
     
     if (!user) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'User not found - token may be invalid',
-        timestamp: new Date().toISOString()
-      });
+      return sendAuthError(res, 'User not found - token may be invalid');
     }
 
-    // Check if user is verified
+    // Check verification status
     if (!user.isVerified) {
-      return res.status(403).json({ 
-        success: false,
-        message: 'Please verify your email address to access this resource',
-        timestamp: new Date().toISOString()
-      });
+      return sendAuthError(res, 'Please verify your email address to access this resource', 403);
     }
 
-    // Add user to request object
+    // Add user to request
     req.user = user;
     next();
 
-  } catch (err) {
-    console.error('Auth middleware error:', err);
-    return res.status(500).json({ 
-      success: false,
-      message: 'Authentication error',
-      timestamp: new Date().toISOString()
-    });
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    return sendAuthError(res, 'Authentication error', 500);
   }
 };
 
-// Role-based authorization middleware
+// Role-based authorization
 exports.authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Authentication required',
-        timestamp: new Date().toISOString()
-      });
+      return sendAuthError(res, 'Authentication required');
     }
 
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ 
-        success: false,
-        message: `Access denied. Required roles: ${roles.join(', ')}`,
-        timestamp: new Date().toISOString()
-      });
+      return sendAuthError(res, `Access denied. Required roles: ${roles.join(', ')}`, 403);
     }
 
     next();
   };
 };
 
-// Optional auth - doesn't fail if no token, but adds user if valid token exists
+// Optional authentication - doesn't fail if no token
 exports.optionalAuth = async (req, res, next) => {
   try {
     let token;
@@ -107,7 +86,6 @@ exports.optionalAuth = async (req, res, next) => {
     }
 
     if (!token) {
-      // No token is fine for optional auth
       return next();
     }
 
@@ -120,13 +98,11 @@ exports.optionalAuth = async (req, res, next) => {
         req.user = user;
       }
     } catch (err) {
-      // Invalid token is fine for optional auth - just don't set req.user
-      console.log('Optional auth - invalid token:', err.message);
+      // Silently fail for optional auth
     }
 
     next();
-  } catch (err) {
-    console.error('Optional auth middleware error:', err);
+  } catch (error) {
     next(); // Continue even on error for optional auth
   }
 };

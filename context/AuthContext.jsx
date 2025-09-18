@@ -17,33 +17,46 @@ export const AuthProvider = ({ children }) => {
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem("accessToken");
-        if (token) {
-          console.log("🔍 Checking existing session...");
-          // Verify token is still valid by fetching current user
-          const res = await api.get("/auth/me");
-          
-          console.log("Session check response:", res.data);
-          
-          if (res.data?.success && res.data?.data?.user) {
-            setUser(res.data.data.user);
-            console.log("✅ Valid session found");
-          } else if (res.data?.success && res.data?.user) {
-            setUser(res.data.user);
-            console.log("✅ Valid session found (alt structure)");
-          } else {
-            console.log("❌ Invalid session response structure");
-            localStorage.removeItem("accessToken");
-            localStorage.removeItem("refreshToken");
-          }
-        } else {
+        
+        if (!token) {
           console.log("ℹ️ No access token found");
+          setLoading(false);
+          setIsInitialized(true);
+          return;
+        }
+
+        console.log("🔍 Checking existing session...");
+        
+        // Set the token in axios defaults immediately
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        
+        // Verify token is still valid by fetching current user
+        const res = await api.get("/auth/me");
+        
+        console.log("Session check response:", res.data);
+        
+        // Handle different response structures from your backend
+        let userData = null;
+        if (res.data?.success && res.data?.data?.user) {
+          userData = res.data.data.user;
+        } else if (res.data?.user) {
+          userData = res.data.user;
+        }
+
+        if (userData) {
+          setUser(userData);
+          console.log("✅ Valid session restored for:", userData.email);
+        } else {
+          console.log("❌ Invalid session response structure");
+          clearTokens();
         }
       } catch (error) {
-        console.log("❌ Session check failed:", error.message);
-        // Don't clear tokens here - let the interceptor handle it if it's a 401
-        if (error.response?.status !== 401) {
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
+        console.log("❌ Session check failed:", error.response?.status, error.message);
+        
+        // Only clear tokens if it's actually an auth error
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          console.log("🧹 Clearing invalid tokens");
+          clearTokens();
         }
       } finally {
         setLoading(false);
@@ -53,6 +66,13 @@ export const AuthProvider = ({ children }) => {
 
     checkAuth();
   }, []);
+
+  const clearTokens = () => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    delete api.defaults.headers.common['Authorization'];
+    setUser(null);
+  };
 
   const handleRedirect = (userData) => {
     if (!userData) return;
@@ -85,7 +105,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       console.log("📝 Starting registration...");
 
-      // Validate form data
+      // Validation
       if (!form.name || !form.email || !form.password) {
         throw new Error("Name, email, and password are required");
       }
@@ -139,15 +159,17 @@ export const AuthProvider = ({ children }) => {
       }
 
       const res = await api.post("/auth/login", { email, password });
-      console.log("Full login response:", res.data);
+      console.log("Login response:", res.data);
 
       if (res.data?.success) {
         const { accessToken, refreshToken, user: userData } = res.data.data;
         
-        console.log("Extracted from response:", {
+        console.log("Token check:", {
           hasAccessToken: !!accessToken,
           hasRefreshToken: !!refreshToken,
-          hasUserData: !!userData
+          hasUserData: !!userData,
+          accessTokenLength: accessToken?.length,
+          refreshTokenLength: refreshToken?.length
         });
 
         if (!accessToken || !userData) {
@@ -156,26 +178,18 @@ export const AuthProvider = ({ children }) => {
 
         // Store tokens
         localStorage.setItem("accessToken", accessToken);
-        console.log("✅ Access token stored");
-
         if (refreshToken) {
           localStorage.setItem("refreshToken", refreshToken);
-          console.log("✅ Refresh token stored");
-        } else {
-          console.warn("⚠️ No refresh token in response!");
         }
 
-        // Verify tokens were stored
-        const storedAccess = localStorage.getItem("accessToken");
-        const storedRefresh = localStorage.getItem("refreshToken");
-        console.log("Storage verification:", {
-          accessStored: !!storedAccess,
-          refreshStored: !!storedRefresh
-        });
+        // Set default auth header for all future requests
+        api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+        
+        console.log("✅ Tokens stored and auth header set");
 
         // Set user state
         setUser(userData);
-        console.log("✅ User state updated");
+        console.log("✅ User state updated:", userData.email);
 
         // Redirect based on role and verification status
         handleRedirect(userData);
@@ -216,24 +230,22 @@ export const AuthProvider = ({ children }) => {
           console.log("✅ Server logout successful");
         } catch (error) {
           console.warn("⚠️ Server logout failed:", error.message);
+          // Continue with local cleanup even if server logout fails
         }
       }
 
-      // Clear tokens and user state
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      setUser(null);
+      // Clear everything
+      clearTokens();
       console.log("✅ Local state cleared");
 
-      // Redirect to login
-      router.push("/login");
+      // Redirect to home page instead of login to avoid loops
+      router.push("/");
+      
     } catch (error) {
       console.error("❌ Logout error:", error);
       // Still clear local state even if there are errors
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      setUser(null);
-      router.push("/login");
+      clearTokens();
+      router.push("/");
     } finally {
       setLoading(false);
     }
@@ -324,7 +336,6 @@ export const AuthProvider = ({ children }) => {
       }
 
       const res = await api.post("/auth/forgot-password", { email });
-      console.log("Forgot password response:", res.data);
 
       if (res.data?.success) {
         return {
@@ -361,7 +372,6 @@ export const AuthProvider = ({ children }) => {
       }
 
       const res = await api.post(`/auth/reset-password/${token}`, { password });
-      console.log("Reset password response:", res.data);
 
       if (res.data?.success) {
         return {
@@ -391,12 +401,16 @@ export const AuthProvider = ({ children }) => {
       console.log("🔄 Refreshing user data...");
       const res = await api.get("/auth/me");
       
+      let userData = null;
       if (res.data?.success && res.data?.data?.user) {
-        setUser(res.data.data.user);
-        return res.data.data.user;
-      } else if (res.data?.success && res.data?.user) {
-        setUser(res.data.user);
-        return res.data.user;
+        userData = res.data.data.user;
+      } else if (res.data?.user) {
+        userData = res.data.user;
+      }
+
+      if (userData) {
+        setUser(userData);
+        return userData;
       } else {
         throw new Error("Invalid response structure");
       }
