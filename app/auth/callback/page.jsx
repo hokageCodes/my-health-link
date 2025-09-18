@@ -124,14 +124,19 @@ export default function AuthCallback() {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           {status === 'processing' && (
-            <>
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <h2 className="mt-6 text-xl font-semibold text-gray-900">
-                Completing Authentication
-              </h2>
-              <p className="mt-2 text-gray-600">{message}</p>
-            </>
-          )}
+  <>
+    <div className="space-y-4 animate-pulse">
+      <div className="mx-auto h-12 w-12 rounded-full bg-blue-200"></div>
+      <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto"></div>
+      <div className="h-3 bg-gray-200 rounded w-1/2 mx-auto"></div>
+    </div>
+    <h2 className="mt-6 text-xl font-semibold text-gray-900">
+      Completing Authentication
+    </h2>
+    <p className="mt-2 text-gray-600">{message}</p>
+  </>
+)}
+
           
           {status === 'success' && (
             <>
