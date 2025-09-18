@@ -18,23 +18,21 @@ export default function VerifyEmailPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // If no email param, send user back to register
+  // Redirect if no email
   useEffect(() => {
-    if (!email) {
-      router.push("/register");
-    }
+    if (!email) router.push("/register");
   }, [email, router]);
 
-  // Countdown timer for resend
+  // Resend countdown
   useEffect(() => {
     if (counter > 0) {
-      const timer = setTimeout(() => setCounter((prev) => prev - 1), 1000);
+      const timer = setTimeout(() => setCounter((c) => c - 1), 1000);
       return () => clearTimeout(timer);
     }
   }, [counter]);
 
   const handleOtpChange = (e) => {
-    const value = e.target.value.replace(/\D/g, ""); // digits only
+    const value = e.target.value.replace(/\D/g, "");
     if (value.length <= 6) {
       setOtp(value);
       setError("");
@@ -56,24 +54,19 @@ export default function VerifyEmailPage() {
 
     try {
       const result = await verifyOtp(email, otp);
-
       if (result?.success) {
         setSuccess(result.message || "Email verified successfully!");
         setOtp("");
-
-        // Short delay then redirect
         setTimeout(() => {
-          router.push("/login"); // or auto redirect to dashboard
+          router.push("/login"); // 🔄 change this to /dashboard if you want auto role redirect
         }, 1500);
       }
     } catch (err) {
-      console.error("OTP verification error:", err);
-
-      if (err.message.includes("expired")) {
-        setError("Code has expired. Please request a new one.");
+      if (err.message?.includes("expired")) {
+        setError("Code expired. Request a new one.");
         setCounter(0);
-      } else if (err.message.includes("Invalid OTP")) {
-        setError("Invalid code. Please try again.");
+      } else if (err.message?.includes("Invalid")) {
+        setError("Invalid code. Try again.");
         setOtp("");
       } else {
         setError(err.message || "Verification failed. Try again.");
@@ -96,7 +89,6 @@ export default function VerifyEmailPage() {
         setOtp("");
       }
     } catch (err) {
-      console.error("Resend OTP error:", err);
       setError(err.message || "Failed to resend code. Try again.");
     } finally {
       setIsResending(false);
@@ -134,11 +126,11 @@ export default function VerifyEmailPage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Verify Your Email
           </h1>
-          <p className="text-gray-600 text-sm">We sent a 6-digit code to:</p>
+          <p className="text-gray-600 text-sm">We sent a 6-digit code to</p>
           <p className="text-gray-900 font-medium break-all">{email}</p>
         </div>
 
-        {/* Messages */}
+        {/* Error / Success */}
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-center text-red-700 text-sm">
             {error}
@@ -150,7 +142,7 @@ export default function VerifyEmailPage() {
           </div>
         )}
 
-        {/* OTP form */}
+        {/* OTP Form */}
         <form onSubmit={handleOtpSubmit} className="space-y-6">
           <input
             type="text"
@@ -182,7 +174,7 @@ export default function VerifyEmailPage() {
         <div className="mt-6 text-center">
           {counter > 0 ? (
             <p className="text-sm text-gray-500">
-              Resend code in {counter} seconds
+              Resend code in {counter}s
             </p>
           ) : (
             <button
@@ -207,7 +199,7 @@ export default function VerifyEmailPage() {
               href="/register"
               className="text-blue-600 hover:text-blue-800 hover:underline"
             >
-              Register again
+              register again
             </Link>
           </p>
         </div>
