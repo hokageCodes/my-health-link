@@ -432,7 +432,6 @@ export const AuthProvider = ({ children }) => {
     forgotPassword,
     resetPassword,
     refreshUser,
-    setUser // Export setUser for OAuth callback
   };
 
   return (
