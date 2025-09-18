@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from '../../../context/AuthContext';
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "../../../context/AuthContext";
 
-export default function AuthCallback() {
-  const [status, setStatus] = useState('processing');
-  const [message, setMessage] = useState('Processing authentication...');
+function AuthCallbackContent() {
+  const [status, setStatus] = useState("processing");
+  const [message, setMessage] = useState("Processing authentication...");
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setUser } = useAuth();
@@ -14,47 +14,46 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        const accessToken = searchParams.get('access_token');
-        const refreshToken = searchParams.get('refresh_token');
-        const userParam = searchParams.get('user');
-        const error = searchParams.get('error');
+        const accessToken = searchParams.get("access_token");
+        const refreshToken = searchParams.get("refresh_token");
+        const userParam = searchParams.get("user");
+        const error = searchParams.get("error");
 
         // Handle error cases
         if (error) {
-          let errorMessage = 'Authentication failed';
+          let errorMessage = "Authentication failed";
           switch (error) {
-            case 'oauth_failed':
-              errorMessage = 'Google authentication failed. Please try again.';
+            case "oauth_failed":
+              errorMessage = "Google authentication failed. Please try again.";
               break;
-            case 'oauth_no_user':
-              errorMessage = 'No user data received from Google.';
+            case "oauth_no_user":
+              errorMessage = "No user data received from Google.";
               break;
-            case 'token_generation_failed':
-              errorMessage = 'Failed to generate authentication tokens.';
+            case "token_generation_failed":
+              errorMessage = "Failed to generate authentication tokens.";
               break;
-            case 'oauth_callback_error':
-              errorMessage = 'Authentication callback error occurred.';
+            case "oauth_callback_error":
+              errorMessage = "Authentication callback error occurred.";
               break;
             default:
-              errorMessage = 'An unknown authentication error occurred.';
+              errorMessage = "An unknown authentication error occurred.";
           }
-          
-          setStatus('error');
+
+          setStatus("error");
           setMessage(errorMessage);
-          
-          // Redirect to login after showing error
+
           setTimeout(() => {
-            router.push('/login');
+            router.push("/login");
           }, 3000);
           return;
         }
 
         // Validate required parameters
         if (!accessToken || !refreshToken || !userParam) {
-          setStatus('error');
-          setMessage('Invalid authentication response. Missing required data.');
+          setStatus("error");
+          setMessage("Invalid authentication response. Missing required data.");
           setTimeout(() => {
-            router.push('/login');
+            router.push("/login");
           }, 3000);
           return;
         }
@@ -64,54 +63,53 @@ export default function AuthCallback() {
         try {
           userData = JSON.parse(decodeURIComponent(userParam));
         } catch (parseError) {
-          console.error('Failed to parse user data:', parseError);
-          setStatus('error');
-          setMessage('Invalid user data format.');
+          console.error("Failed to parse user data:", parseError);
+          setStatus("error");
+          setMessage("Invalid user data format.");
           setTimeout(() => {
-            router.push('/login');
+            router.push("/login");
           }, 3000);
           return;
         }
 
         // Store tokens
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem("accessToken", accessToken);
+        localStorage.setItem("refreshToken", refreshToken);
 
         // Set user in context
         setUser(userData);
 
-        setStatus('success');
-        setMessage('Authentication successful! Redirecting...');
+        setStatus("success");
+        setMessage("Authentication successful! Redirecting...");
 
-        // Redirect based on user role and verification status
+        // Redirect based on role & verification
         setTimeout(() => {
           if (!userData.isVerified) {
             router.push(`/verify?email=${encodeURIComponent(userData.email)}`);
           } else {
             switch (userData.role) {
-              case 'admin':
-                router.push('/admin/dashboard');
+              case "admin":
+                router.push("/admin/dashboard");
                 break;
-              case 'caregiver':
-                router.push('/caregiver/dashboard');
+              case "caregiver":
+                router.push("/caregiver/dashboard");
                 break;
-              case 'patient':
-              case 'user':
-                router.push('/user/dashboard');
+              case "patient":
+              case "user":
+                router.push("/user/dashboard");
                 break;
               default:
-                router.push('/dashboard');
+                router.push("/dashboard");
                 break;
             }
           }
         }, 1500);
-
       } catch (error) {
-        console.error('OAuth callback error:', error);
-        setStatus('error');
-        setMessage('An unexpected error occurred during authentication.');
+        console.error("OAuth callback error:", error);
+        setStatus("error");
+        setMessage("An unexpected error occurred during authentication.");
         setTimeout(() => {
-          router.push('/login');
+          router.push("/login");
         }, 3000);
       }
     };
@@ -123,22 +121,17 @@ export default function AuthCallback() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          {status === 'processing' && (
-  <>
-    <div className="space-y-4 animate-pulse">
-      <div className="mx-auto h-12 w-12 rounded-full bg-blue-200"></div>
-      <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto"></div>
-      <div className="h-3 bg-gray-200 rounded w-1/2 mx-auto"></div>
-    </div>
-    <h2 className="mt-6 text-xl font-semibold text-gray-900">
-      Completing Authentication
-    </h2>
-    <p className="mt-2 text-gray-600">{message}</p>
-  </>
-)}
+          {status === "processing" && (
+            <>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <h2 className="mt-6 text-xl font-semibold text-gray-900">
+                Completing Authentication
+              </h2>
+              <p className="mt-2 text-gray-600">{message}</p>
+            </>
+          )}
 
-          
-          {status === 'success' && (
+          {status === "success" && (
             <>
               <div className="mx-auto h-12 w-12 text-green-500">
                 <svg fill="currentColor" viewBox="0 0 20 20">
@@ -155,8 +148,8 @@ export default function AuthCallback() {
               <p className="mt-2 text-gray-600">{message}</p>
             </>
           )}
-          
-          {status === 'error' && (
+
+          {status === "error" && (
             <>
               <div className="mx-auto h-12 w-12 text-red-500">
                 <svg fill="currentColor" viewBox="0 0 20 20">
@@ -179,5 +172,13 @@ export default function AuthCallback() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AuthCallback() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center h-screen">Loading...</div>}>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }
