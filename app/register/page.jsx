@@ -1,14 +1,13 @@
 "use client";
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import Link from "next/link";
 
 export default function RegisterPage() {
   const { register, loading } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  
+
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -20,35 +19,36 @@ export default function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState("");
 
-  // Check for OAuth errors from URL params
-  useState(() => {
-    const error = searchParams.get('error');
+  // ✅ Check for OAuth errors from URL params (no Suspense issues)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get("error");
+
     if (error) {
-      let errorMessage = 'Authentication failed';
+      let errorMessage = "Authentication failed";
       switch (error) {
-        case 'oauth_failed':
-          errorMessage = 'Google authentication failed. Please try again.';
+        case "oauth_failed":
+          errorMessage = "Google authentication failed. Please try again.";
           break;
-        case 'oauth_no_user':
-          errorMessage = 'No user data received from Google.';
+        case "oauth_no_user":
+          errorMessage = "No user data received from Google.";
           break;
-        case 'token_generation_failed':
-          errorMessage = 'Failed to generate authentication tokens.';
+        case "token_generation_failed":
+          errorMessage = "Failed to generate authentication tokens.";
           break;
-        case 'oauth_callback_error':
-          errorMessage = 'Authentication callback error occurred.';
+        case "oauth_callback_error":
+          errorMessage = "Authentication callback error occurred.";
           break;
         default:
-          errorMessage = 'An unknown authentication error occurred.';
+          errorMessage = "An unknown authentication error occurred.";
       }
       setErrors({ general: errorMessage });
     }
-  }, [searchParams]);
+  }, []);
 
   const validateForm = () => {
     const newErrors = {};
 
-    // Name validation
     if (!form.name.trim()) {
       newErrors.name = "Name is required";
     } else if (form.name.trim().length < 2) {
@@ -57,14 +57,12 @@ export default function RegisterPage() {
       newErrors.name = "Name cannot exceed 100 characters";
     }
 
-    // Email validation
     if (!form.email.trim()) {
       newErrors.email = "Email is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       newErrors.email = "Please provide a valid email address";
     }
 
-    // Password validation
     if (!form.password) {
       newErrors.password = "Password is required";
     } else if (form.password.length < 6) {
@@ -73,14 +71,12 @@ export default function RegisterPage() {
       newErrors.password = "Password cannot exceed 100 characters";
     }
 
-    // Confirm password validation
     if (!form.confirmPassword) {
       newErrors.confirmPassword = "Please confirm your password";
     } else if (form.password !== form.confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
-    // Role validation
     if (!["patient", "caregiver"].includes(form.role)) {
       newErrors.role = "Please select a valid role";
     }
@@ -91,44 +87,38 @@ export default function RegisterPage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-    
-    // Clear specific error when user starts typing
+    setForm((prev) => ({ ...prev, [name]: value }));
+
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: "" }));
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
-    
-    // Clear success message when user makes changes
+
     if (success) setSuccess("");
-    
-    // Clear general errors when user interacts
     if (errors.general) {
-      setErrors(prev => ({ ...prev, general: "" }));
+      setErrors((prev) => ({ ...prev, general: "" }));
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setIsSubmitting(true);
     setErrors({});
     setSuccess("");
-    
+
     try {
       const { confirmPassword, ...submitData } = form;
       const result = await register(submitData);
-      
+
       if (result?.success) {
         setSuccess(result.message || "Registration successful! Please check your email for OTP.");
-        
-        // Store email for redirect
+
         const emailForRedirect = form.email;
-        
-        // Clear form
+
         setForm({
           name: "",
           email: "",
@@ -136,23 +126,21 @@ export default function RegisterPage() {
           confirmPassword: "",
           role: "patient",
         });
-        
-        // Redirect after a short delay
+
         setTimeout(() => {
           router.push(`/verify?email=${encodeURIComponent(emailForRedirect)}`);
         }, 2000);
       }
     } catch (err) {
       console.error("Registration error:", err);
-      
-      // Handle specific validation errors from backend
+
       if (err.message.includes("email already exists")) {
         setErrors({ email: "An account with this email already exists" });
       } else if (err.message.includes("Invalid role")) {
         setErrors({ role: "Please select a valid role" });
       } else {
-        setErrors({ 
-          general: err.message || "Registration failed. Please try again." 
+        setErrors({
+          general: err.message || "Registration failed. Please try again.",
         });
       }
     } finally {
@@ -161,16 +149,28 @@ export default function RegisterPage() {
   };
 
   const handleGoogleAuth = () => {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
     window.location.href = `${baseUrl}/auth/google`;
   };
 
   const GoogleIcon = () => (
-    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+        fill="#34A853"
+      />
+      <path
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+        fill="#EA4335"
+      />
     </svg>
   );
 
@@ -185,14 +185,12 @@ export default function RegisterPage() {
           <p className="text-gray-600 mt-2">Join MyHealthLink today</p>
         </div>
 
-        {/* General Error */}
         {errors.general && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-red-700 text-sm">{errors.general}</p>
           </div>
         )}
 
-        {/* Success Message */}
         {success && (
           <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
             <p className="text-green-700 text-sm">{success}</p>
@@ -200,7 +198,7 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Name Field */}
+          {/* Name */}
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
               Full Name
@@ -210,10 +208,8 @@ export default function RegisterPage() {
               type="text"
               name="name"
               placeholder="Enter your full name"
-              className={`w-full border p-3 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent ${
-                errors.name 
-                  ? "border-red-300 focus:ring-red-500" 
-                  : "border-gray-300 focus:ring-blue-500"
+              className={`w-full border p-3 rounded-lg focus:outline-none focus:ring-2 ${
+                errors.name ? "border-red-300 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"
               }`}
               value={form.name}
               onChange={handleChange}
@@ -223,7 +219,7 @@ export default function RegisterPage() {
             {errors.name && <p className="text-red-600 text-xs mt-1">{errors.name}</p>}
           </div>
 
-          {/* Email Field */}
+          {/* Email */}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
               Email Address
@@ -233,10 +229,8 @@ export default function RegisterPage() {
               type="email"
               name="email"
               placeholder="Enter your email"
-              className={`w-full border p-3 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent ${
-                errors.email 
-                  ? "border-red-300 focus:ring-red-500" 
-                  : "border-gray-300 focus:ring-blue-500"
+              className={`w-full border p-3 rounded-lg focus:outline-none focus:ring-2 ${
+                errors.email ? "border-red-300 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"
               }`}
               value={form.email}
               onChange={handleChange}
@@ -246,7 +240,7 @@ export default function RegisterPage() {
             {errors.email && <p className="text-red-600 text-xs mt-1">{errors.email}</p>}
           </div>
 
-          {/* Password Field */}
+          {/* Password */}
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
               Password
@@ -256,10 +250,8 @@ export default function RegisterPage() {
               type="password"
               name="password"
               placeholder="Create a password (min. 6 characters)"
-              className={`w-full border p-3 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent ${
-                errors.password 
-                  ? "border-red-300 focus:ring-red-500" 
-                  : "border-gray-300 focus:ring-blue-500"
+              className={`w-full border p-3 rounded-lg focus:outline-none focus:ring-2 ${
+                errors.password ? "border-red-300 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"
               }`}
               value={form.password}
               onChange={handleChange}
@@ -269,7 +261,7 @@ export default function RegisterPage() {
             {errors.password && <p className="text-red-600 text-xs mt-1">{errors.password}</p>}
           </div>
 
-          {/* Confirm Password Field */}
+          {/* Confirm Password */}
           <div>
             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
               Confirm Password
@@ -279,10 +271,8 @@ export default function RegisterPage() {
               type="password"
               name="confirmPassword"
               placeholder="Confirm your password"
-              className={`w-full border p-3 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent ${
-                errors.confirmPassword 
-                  ? "border-red-300 focus:ring-red-500" 
-                  : "border-gray-300 focus:ring-blue-500"
+              className={`w-full border p-3 rounded-lg focus:outline-none focus:ring-2 ${
+                errors.confirmPassword ? "border-red-300 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"
               }`}
               value={form.confirmPassword}
               onChange={handleChange}
@@ -292,7 +282,7 @@ export default function RegisterPage() {
             {errors.confirmPassword && <p className="text-red-600 text-xs mt-1">{errors.confirmPassword}</p>}
           </div>
 
-          {/* Role Selection */}
+          {/* Role */}
           <div>
             <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
               I am registering as a
@@ -302,10 +292,8 @@ export default function RegisterPage() {
               name="role"
               value={form.role}
               onChange={handleChange}
-              className={`w-full border p-3 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent ${
-                errors.role 
-                  ? "border-red-300 focus:ring-red-500" 
-                  : "border-gray-300 focus:ring-blue-500"
+              className={`w-full border p-3 rounded-lg focus:outline-none focus:ring-2 ${
+                errors.role ? "border-red-300 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"
               }`}
               disabled={isSubmitting || loading}
             >
@@ -315,7 +303,7 @@ export default function RegisterPage() {
             {errors.role && <p className="text-red-600 text-xs mt-1">{errors.role}</p>}
           </div>
 
-          {/* Submit Button */}
+          {/* Submit */}
           <button
             type="submit"
             disabled={isButtonDisabled}
@@ -352,9 +340,7 @@ export default function RegisterPage() {
               onClick={handleGoogleAuth}
               disabled={isSubmitting || loading}
               className={`w-full flex items-center justify-center gap-3 border border-gray-300 py-3 px-4 rounded-lg transition-colors ${
-                isSubmitting || loading 
-                  ? 'opacity-50 cursor-not-allowed' 
-                  : 'hover:bg-gray-50'
+                isSubmitting || loading ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"
               }`}
               type="button"
             >
@@ -367,10 +353,7 @@ export default function RegisterPage() {
         {/* Links */}
         <div className="mt-6 text-sm text-center text-gray-600">
           Already have an account?{" "}
-          <Link 
-            href="/login" 
-            className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
-          >
+          <Link href="/login" className="text-blue-600 hover:text-blue-800 hover:underline font-medium">
             Sign in here
           </Link>
         </div>
