@@ -15,7 +15,6 @@ function signAccessToken(userId, role = null) {
   });
 }
 
-
 // Create refresh token (JWT) and return both token and its hash
 function signRefreshToken(userId, role = null) {
   const jti = crypto.randomBytes(16).toString('hex');
@@ -30,7 +29,6 @@ function signRefreshToken(userId, role = null) {
   return { token, hash };
 }
 
-
 function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
@@ -43,10 +41,19 @@ function verifyRefreshToken(token) {
   return jwt.verify(token, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET);
 }
 
+// ✅ Add this wrapper so authRoutes.js works
+function issueTokens(user) {
+  const accessToken = signAccessToken(user._id, user.role);
+  const { token: refreshToken } = signRefreshToken(user._id, user.role);
+
+  return { accessToken, refreshToken };
+}
+
 module.exports = {
   signAccessToken,
   signRefreshToken,
   hashToken,
   verifyAccessToken,
   verifyRefreshToken,
+  issueTokens, // ✅ export it
 };
